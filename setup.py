@@ -6,6 +6,7 @@ from verifier import VerificationKey
 from dataclasses import dataclass
 from poly import Polynomial, Basis
 
+
 @dataclass
 class Setup(object):
     #   ([1]₁, [x]₁, ..., [x^{d-1}]₁)
@@ -29,6 +30,11 @@ class Setup(object):
         # powers_of_x[i] =  b.G1 * tau**i = powers_of_x[i - 1] * tau
         # TODO: generate powers_of_x
         # reference: https://github.com/sec-bit/learning-zkp/blob/master/plonk-intro-cn/5-plonk-polycom.md
+        # NOTE: this homework is trivial in that the algorithm is just in the comments
+        # NOTE multiply( b.G1 * tau ) in b, is expressed as b.multiply(b.G1, tau)
+        powers_of_x[0] = b.G1
+        for i in range(1, powers):
+            powers_of_x[i] = b.multiply(powers_of_x[i - 1], tau)
 
         print("Generated G1 side, X^1 point: {}".format(powers_of_x[1]))
 
@@ -47,10 +53,10 @@ class Setup(object):
 
     # Encodes the KZG commitment that evaluates to the given values in the group
     def commit(self, values: Polynomial) -> G1Point:
-        if (values.basis == Basis.LAGRANGE):
+        if values.basis == Basis.LAGRANGE:
             # inverse FFT from Lagrange basis to monomial basis
             coeffs = values.ifft().values
-        elif (values.basis == Basis.MONOMIAL):
+        elif values.basis == Basis.MONOMIAL:
             coeffs = values.values
         if len(coeffs) > len(self.powers_of_x):
             raise Exception("Not enough powers in setup")
