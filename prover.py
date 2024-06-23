@@ -239,13 +239,18 @@ class Prover:
 
         # construct gate constraints polynomial in coefficient form
         # reference: https://github.com/sec-bit/learning-zkp/blob/master/plonk-intro-cn/4-plonk-constraints.md
+        # NOTE：https://github.com/sec-bit/learning-zkp/blob/master/plonk-intro-cn/4-plonk-constraints.md#%E5%8D%8F%E8%AE%AE%E6%A1%86%E6%9E%B6
         gate_constraints_coeff = (
             # TODO: your code
+            A_coeff * QL_coeff
+            + B_coeff * QR_coeff
+            + A_coeff * B_coeff * QM_coeff
+            + C_coeff * QO_coeff
+            + PI_coeff
+            + QC_coeff
         )
 
-        normal_roots = Polynomial(
-            roots_of_unity, Basis.LAGRANGE
-        )
+        normal_roots = Polynomial(roots_of_unity, Basis.LAGRANGE)
 
         roots_coeff = normal_roots.ifft()
         # z * w
@@ -267,8 +272,29 @@ class Prover:
 
         # construct permutation polynomial
         # reference: https://github.com/sec-bit/learning-zkp/blob/master/plonk-intro-cn/3-plonk-permutation.md
+        # NOTE: it is good to refer to the protocol section: https://github.com/sec-bit/learning-zkp/blob/master/plonk-intro-cn/4-plonk-constraints.md#%E5%8D%8F%E8%AE%AE%E6%A1%86%E6%9E%B6
+        # z(w*X)*g(X) - z(X)*f(X)
+        # f,g will be the permutation polynomial encoded from the permutation constraints with grand product and RLC (Random Linear Combination)
+        # where:
+        #   id for f is based on ：https://github.com/sec-bit/learning-zkp/blob/master/plonk-intro-cn/4-plonk-constraints.md#%E4%BD%8D%E7%BD%AE%E5%90%91%E9%87%8F%E7%9A%84%E4%BC%98%E5%8C%96
+        #   delta for g is in the input S1, S2, S3
+        F = (
+            self.rlc(A_coeff, roots_coeff)
+            * self.rlc(B_coeff, roots_coeff * Scalar(2))
+            * self.rlc(C_coeff, roots_coeff * Scalar(3))
+        )
+        G = (
+            self.rlc(A_coeff, S1_coeff)
+            * self.rlc(B_coeff, S2_coeff)
+            * self.rlc(C_coeff, S3_coeff)
+        )
+
         permutation_grand_product_coeff = (
             # TODO: your code
+            # NOTE：z(w*X)*g(X) - z(X)*f(X)
+            # NOTE: here, the order of operands should be aligned with the verifier side calculation order: permutation_grand_product_eval = z_eval * f_eval - zw_eval * g_eval, otherwise, the check in the verifier side will fail
+            Z_coeff * F
+            - ZW_coeff * G
         )
 
         permutation_first_row_coeff = (Z_coeff - Scalar(1)) * L0_coeff
@@ -375,20 +401,34 @@ class Prover:
 
         print("Generated final quotient witness polynomials")
         return Message5(
-            W_a, W_a_quot,
-            W_b, W_b_quot,
-            W_c, W_c_quot,
-            W_ql, W_ql_quot,
-            W_qr, W_qr_quot,
-            W_qm, W_qm_quot,
-            W_qo, W_qo_quot,
-            W_qc, W_qc_quot,
-            W_s1, W_s1_quot,
-            W_s2, W_s2_quot,
-            W_s3, W_s3_quot,
-            W_z, W_z_quot,
-            W_zw, W_zw_quot,
-            W_t, W_t_quot,
+            W_a,
+            W_a_quot,
+            W_b,
+            W_b_quot,
+            W_c,
+            W_c_quot,
+            W_ql,
+            W_ql_quot,
+            W_qr,
+            W_qr_quot,
+            W_qm,
+            W_qm_quot,
+            W_qo,
+            W_qo_quot,
+            W_qc,
+            W_qc_quot,
+            W_s1,
+            W_s1_quot,
+            W_s2,
+            W_s2_quot,
+            W_s3,
+            W_s3_quot,
+            W_z,
+            W_z_quot,
+            W_zw,
+            W_zw_quot,
+            W_t,
+            W_t_quot,
         )
 
     def rlc(self, term_1, term_2):
